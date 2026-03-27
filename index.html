@@ -2,83 +2,243 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Edge Voice Notes</title>
+<title>Edge Notes</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body { margin:0; font-family:Arial, sans-serif; background:#111; color:#fff; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  .big-btn {
-    width:80%; max-width:700px; height:130px; font-size:34px; background:#00d4ff; color:#000; border:none;
-    border-radius:25px; cursor:pointer;
+  :root { --blue: #00d4ff; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #111111;
+    color: #ffffff;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
-  .big-btn.listening { background:#ff3b5c; }
-  .status { font-size:22px; margin:20px 0; min-height:30px; text-align:center; }
-  .transcript { width:80%; background:#222; padding:20px; border-radius:12px; min-height:150px; font-size:19px; line-height:1.5; white-space:pre-wrap; }
+  .transcript {
+    flex: 1;
+    background: #1c1c1e;
+    margin: 20px;
+    border-radius: 24px;
+    padding: 24px;
+    font-size: 21px;
+    line-height: 1.5;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.15);
+    scroll-behavior: smooth;
+  }
+  .transcript::-webkit-scrollbar { width: 6px; }
+  .transcript::-webkit-scrollbar-thumb { background: var(--blue); border-radius: 10px; }
+  
+  .main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 0 20px;
+  }
+  .big-btn {
+    width: 90%;
+    max-width: 420px;
+    height: 78px;
+    font-size: 26px;
+    font-weight: 600;
+    background: var(--blue);
+    color: #000;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
+    transition: all 0.2s ease;
+  }
+  .big-btn:active { transform: scale(0.95); }
+  .big-btn.listening {
+    background: #ff3b5c;
+    box-shadow: 0 8px 25px rgba(255, 59, 92, 0.4);
+  }
+  
+  .status {
+    font-size: 18px;
+    min-height: 24px;
+    text-align: center;
+    color: #888;
+  }
+  
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    padding: 0 20px 20px;
+  }
+  .toolbar button {
+    flex: 1;
+    padding: 14px;
+    background: #2c2c2e;
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  
+  .saved {
+    flex: 1;
+    background: #1c1c1e;
+    margin: 0 20px 20px;
+    border-radius: 24px;
+    padding: 16px;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+  .saved h3 {
+    margin: 0 0 12px 8px;
+    font-size: 17px;
+    color: var(--blue);
+    font-weight: 600;
+  }
+  .note {
+    background: #2c2c2e;
+    margin: 8px 0;
+    padding: 14px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .note:hover { background: #3a3a3c; }
+  .note small { color: var(--blue); display: block; margin-bottom: 4px; font-size: 13px; }
 </style>
 </head>
 <body>
 
-<h2>🎤 Edge Voice Notes — Tap to Speak</h2>
-<button id="micBtn" class="big-btn">TAP TO START SPEAKING</button>
-<div id="status" class="status"></div>
-<div id="transcript" class="transcript"></div>
+<div class="transcript" id="transcript"></div>
+
+<div class="main">
+  <button id="micBtn" class="big-btn">🎤 Tap to Speak</button>
+  <div id="status" class="status">Ready — tap the button and start talking</div>
+</div>
+
+<div class="toolbar">
+  <button id="clearBtn">Clear</button>
+  <button id="exportBtn">Export All Notes</button>
+</div>
+
+<div class="saved">
+  <h3>Saved Notes</h3>
+  <div id="notesList"></div>
+</div>
 
 <script>
-  const micBtn = document.getElementById('micBtn');
-  const statusEl = document.getElementById('status');
-  const transcriptEl = document.getElementById('transcript');
+const micBtn = document.getElementById('micBtn');
+const statusEl = document.getElementById('status');
+const transcriptEl = document.getElementById('transcript');
+const notesList = document.getElementById('notesList');
+const clearBtn = document.getElementById('clearBtn');
+const exportBtn = document.getElementById('exportBtn');
 
-  let recognition;
-  let isListening = false;
+let recognition;
+let isListening = false;
+let fullTranscript = '';
 
-  function init() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      statusEl.innerHTML = '❌ Voice input not supported.<br>Use latest Chrome or Edge.';
-      return;
-    }
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+function initRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    statusEl.innerHTML = '❌ Voice not supported.<br>Use Microsoft Edge.';
+    return false;
+  }
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
 
-    recognition.onresult = function(event) {
-      let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+  recognition.onresult = (event) => {
+    let interim = '';
+    fullTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        fullTranscript += event.results[i][0].transcript + ' ';
+      } else {
+        interim += event.results[i][0].transcript;
       }
-      transcriptEl.textContent = transcript;
-    };
-
-    statusEl.textContent = '✅ Ready — tap the big button and speak!';
-  }
-
-  function startListening() {
-    if (!recognition) init();
-    recognition.start();
-    isListening = true;
-    micBtn.textContent = 'TAP TO STOP';
-    micBtn.classList.add('listening');
-    statusEl.textContent = '🎙️ Listening... speak now';
-  }
-
-  function stopListening() {
-    if (recognition) recognition.stop();
-    isListening = false;
-    micBtn.textContent = 'TAP TO START SPEAKING';
-    micBtn.classList.remove('listening');
-    statusEl.textContent = '✅ Stopped';
-  }
-
-  micBtn.addEventListener('click', function() {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
     }
-  });
+    transcriptEl.textContent = fullTranscript + interim;
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  };
 
-  // Start the app
-  init();
+  recognition.onerror = () => stopListening();
+  recognition.onend = () => { if (isListening) stopListening(); };
+  return true;
+}
+
+function startListening() {
+  if (!recognition) initRecognition();
+  fullTranscript = '';
+  transcriptEl.textContent = '';
+  recognition.start();
+  isListening = true;
+  micBtn.textContent = '⏹️ Stop';
+  micBtn.classList.add('listening');
+  statusEl.textContent = '🎙️ Listening... speak naturally';
+}
+
+function stopListening() {
+  if (recognition) recognition.stop();
+  isListening = false;
+  micBtn.textContent = '🎤 Tap to Speak';
+  micBtn.classList.remove('listening');
+  statusEl.textContent = '✅ Stopped — note auto-saved';
+
+  if (fullTranscript.trim()) {
+    const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
+    notes.unshift({
+      time: new Date().toLocaleString(),
+      text: fullTranscript.trim()
+    });
+    localStorage.setItem('edgeNotes', JSON.stringify(notes));
+    renderNotes();
+  }
+}
+
+micBtn.addEventListener('click', () => {
+  if (isListening) stopListening();
+  else startListening();
+});
+
+clearBtn.addEventListener('click', () => {
+  transcriptEl.textContent = '';
+  fullTranscript = '';
+});
+
+exportBtn.addEventListener('click', () => {
+  const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
+  if (!notes.length) return;
+  const text = notes.map(n => `${n.time}\n${n.text}\n\n`).join('────────────────\n');
+  const blob = new Blob([text], {type: 'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Edge-Notes-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+});
+
+function renderNotes() {
+  const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
+  notesList.innerHTML = notes.length ? '' : '<p style="text-align:center;color:#666;padding:20px;">No notes yet</p>';
+  notes.forEach(note => {
+    const div = document.createElement('div');
+    div.className = 'note';
+    div.innerHTML = `<small>${note.time}</small>${note.text}`;
+    div.onclick = () => {
+      navigator.clipboard.writeText(note.text).then(() => {
+        alert('✅ Copied to clipboard!');
+      });
+    };
+    notesList.appendChild(div);
+  });
+}
+
+initRecognition();
+renderNotes();
 </script>
 </body>
 </html>
