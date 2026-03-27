@@ -2,243 +2,841 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Edge Notes</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Notes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <style>
-  :root { --blue: #00d4ff; }
+  @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --accent: #00d4ff;
+    --accent-glow: rgba(0, 212, 255, 0.25);
+    --accent-dim: rgba(0, 212, 255, 0.08);
+    --bg-deep: #000000;
+    --bg-primary: #0a0a0a;
+    --bg-card: #141416;
+    --bg-elevated: #1c1c1e;
+    --bg-input: #2c2c2e;
+    --text-primary: #f5f5f7;
+    --text-secondary: #98989d;
+    --text-tertiary: #636366;
+    --red: #ff375f;
+    --red-glow: rgba(255, 55, 95, 0.3);
+    --green: #30d158;
+    --radius-sm: 12px;
+    --radius-md: 18px;
+    --radius-lg: 24px;
+    --radius-pill: 9999px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
   body {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #111111;
-    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
     height: 100vh;
+    width: 100vw;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
-  .transcript {
+
+  /* ── SETUP SCREEN ── */
+  .setup-screen {
     flex: 1;
-    background: #1c1c1e;
-    margin: 20px;
-    border-radius: 24px;
-    padding: 24px;
-    font-size: 21px;
-    line-height: 1.5;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.15);
-    scroll-behavior: smooth;
-  }
-  .transcript::-webkit-scrollbar { width: 6px; }
-  .transcript::-webkit-scrollbar-thumb { background: var(--blue); border-radius: 10px; }
-  
-  .main {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
-    padding: 0 20px;
+    justify-content: center;
+    padding: 40px 30px;
+    gap: 24px;
+    text-align: center;
   }
-  .big-btn {
-    width: 90%;
-    max-width: 420px;
-    height: 78px;
+  .setup-screen.hidden { display: none; }
+
+  .setup-icon {
+    width: 80px; height: 80px;
+    background: var(--accent-dim);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+
+  .setup-title {
     font-size: 26px;
-    font-weight: 600;
-    background: var(--blue);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+
+  .setup-subtitle {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 440px;
+  }
+
+  .setup-subtitle a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .api-input-wrap {
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+  }
+
+  .api-input {
+    width: 100%;
+    padding: 16px 20px;
+    background: var(--bg-elevated);
+    border: 1.5px solid var(--bg-input);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 16px;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    outline: none;
+    transition: border-color 0.25s;
+  }
+  .api-input::placeholder { color: var(--text-tertiary); font-family: -apple-system, sans-serif; }
+  .api-input:focus { border-color: var(--accent); }
+
+  .setup-btn {
+    width: 100%;
+    max-width: 420px;
+    padding: 18px;
+    background: var(--accent);
     color: #000;
     border: none;
-    border-radius: 9999px;
-    cursor: pointer;
-    box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
-    transition: all 0.2s ease;
-  }
-  .big-btn:active { transform: scale(0.95); }
-  .big-btn.listening {
-    background: #ff3b5c;
-    box-shadow: 0 8px 25px rgba(255, 59, 92, 0.4);
-  }
-  
-  .status {
+    border-radius: var(--radius-pill);
     font-size: 18px;
-    min-height: 24px;
-    text-align: center;
-    color: #888;
-  }
-  
-  .toolbar {
-    display: flex;
-    gap: 12px;
-    padding: 0 20px 20px;
-  }
-  .toolbar button {
-    flex: 1;
-    padding: 14px;
-    background: #2c2c2e;
-    color: white;
-    border: none;
-    border-radius: 16px;
-    font-size: 16px;
-    font-weight: 500;
-  }
-  
-  .saved {
-    flex: 1;
-    background: #1c1c1e;
-    margin: 0 20px 20px;
-    border-radius: 24px;
-    padding: 16px;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  }
-  .saved h3 {
-    margin: 0 0 12px 8px;
-    font-size: 17px;
-    color: var(--blue);
     font-weight: 600;
-  }
-  .note {
-    background: #2c2c2e;
-    margin: 8px 0;
-    padding: 14px;
-    border-radius: 16px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: transform 0.15s, opacity 0.15s;
   }
-  .note:hover { background: #3a3a3c; }
-  .note small { color: var(--blue); display: block; margin-bottom: 4px; font-size: 13px; }
+  .setup-btn:active { transform: scale(0.96); }
+  .setup-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .setup-error {
+    color: var(--red);
+    font-size: 14px;
+    min-height: 20px;
+  }
+
+  .setup-note {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    max-width: 400px;
+    line-height: 1.5;
+  }
+
+  /* ── MAIN APP ── */
+  .app { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .app.hidden { display: none; }
+
+  /* Transcript area */
+  .transcript-area {
+    flex: 1;
+    min-height: 0;
+    padding: 20px 24px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .transcript-area::-webkit-scrollbar { width: 4px; }
+  .transcript-area::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+  .transcript-area::-webkit-scrollbar-track { background: transparent; }
+
+  .transcript-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    text-align: center;
+    user-select: none;
+  }
+  .transcript-placeholder .icon { font-size: 48px; opacity: 0.4; }
+
+  .transcript-text {
+    font-size: 21px;
+    line-height: 1.6;
+    letter-spacing: -0.2px;
+    font-weight: 400;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .interim { color: var(--text-tertiary); }
+
+  /* Controls */
+  .controls {
+    padding: 16px 24px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(to top, var(--bg-deep) 60%, transparent);
+    position: relative;
+  }
+
+  .mic-btn {
+    width: 100%;
+    max-width: 380px;
+    height: 72px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: var(--radius-pill);
+    font-size: 22px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 6px 24px var(--accent-glow);
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .mic-btn:active { transform: scale(0.96); }
+
+  .mic-btn.recording {
+    background: var(--red);
+    box-shadow: 0 6px 24px var(--red-glow);
+    animation: mic-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes mic-pulse {
+    0%, 100% { box-shadow: 0 6px 24px var(--red-glow); }
+    50% { box-shadow: 0 6px 40px var(--red-glow), 0 0 60px var(--red-glow); }
+  }
+
+  .mic-btn .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transform: scale(0);
+    animation: ripple-anim 0.5s linear;
+    pointer-events: none;
+  }
+  @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+  .action-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 14px 10px;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .action-btn:active { transform: scale(0.96); background: var(--bg-input); }
+  .action-btn.danger { color: var(--red); }
+
+  /* Status bar */
+  .status-bar {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    text-align: center;
+    min-height: 18px;
+    transition: color 0.3s;
+  }
+  .status-bar.active { color: var(--green); }
+  .status-bar.error { color: var(--red); }
+
+  /* ── SAVED NOTES PANEL ── */
+  .notes-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--bg-primary);
+  }
+  .notes-panel.open { max-height: 50vh; }
+
+  .notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px 8px;
+  }
+  .notes-header h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.3px;
+  }
+  .notes-count {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    background: var(--bg-elevated);
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+  }
+
+  .notes-list {
+    padding: 8px 24px 20px;
+    overflow-y: auto;
+    max-height: calc(50vh - 60px);
+    -webkit-overflow-scrolling: touch;
+  }
+  .notes-list::-webkit-scrollbar { width: 3px; }
+  .notes-list::-webkit-scrollbar-thumb { background: var(--bg-input); border-radius: 10px; }
+
+  .note-card {
+    background: var(--bg-card);
+    margin-bottom: 10px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .note-card:active { background: var(--bg-elevated); border-color: var(--accent); }
+
+  .note-time {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 6px;
+    letter-spacing: 0.3px;
+  }
+  .note-preview {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .notes-empty {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+  }
+
+  /* Toggle notes button */
+  .toggle-notes {
+    width: 100%;
+    padding: 10px;
+    background: var(--bg-primary);
+    border: none;
+    border-top: 1px solid var(--bg-elevated);
+    color: var(--text-tertiary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: color 0.15s;
+  }
+  .toggle-notes:active { color: var(--accent); }
+  .toggle-notes .arrow { transition: transform 0.3s; display: inline-block; }
+  .toggle-notes .arrow.up { transform: rotate(180deg); }
+
+  /* Settings gear */
+  .settings-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    background: var(--bg-elevated);
+    border: none;
+    border-radius: 50%;
+    color: var(--text-tertiary);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .settings-btn:active { background: var(--bg-input); }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    padding: 12px 24px;
+    border-radius: var(--radius-pill);
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 100;
+    border: 1px solid var(--bg-input);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Waveform animation */
+  .waveform {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 24px;
+  }
+  .waveform .bar {
+    width: 3px;
+    background: var(--text-primary);
+    border-radius: 2px;
+    animation: wave 1s ease-in-out infinite;
+  }
+  .waveform .bar:nth-child(1) { height: 8px; animation-delay: 0s; }
+  .waveform .bar:nth-child(2) { height: 16px; animation-delay: 0.1s; }
+  .waveform .bar:nth-child(3) { height: 24px; animation-delay: 0.2s; }
+  .waveform .bar:nth-child(4) { height: 16px; animation-delay: 0.3s; }
+  .waveform .bar:nth-child(5) { height: 8px; animation-delay: 0.4s; }
+
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
 </style>
 </head>
 <body>
 
-<div class="transcript" id="transcript"></div>
-
-<div class="main">
-  <button id="micBtn" class="big-btn">🎤 Tap to Speak</button>
-  <div id="status" class="status">Ready — tap the button and start talking</div>
+<!-- ═══ SETUP SCREEN ═══ -->
+<div class="setup-screen" id="setupScreen">
+  <div class="setup-icon">🎤</div>
+  <div class="setup-title">Voice Notes</div>
+  <div class="setup-subtitle">
+    Real-time voice-to-text, right on your screen.<br><br>
+    To get started, you need a free Deepgram API key.<br>
+    <a href="https://console.deepgram.com/signup" target="_blank">Sign up at deepgram.com</a> → get $200 free credit → copy your API key below.
+  </div>
+  <div class="api-input-wrap">
+    <input type="password" class="api-input" id="apiKeyInput" placeholder="Paste your Deepgram API key here" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="setup-error" id="setupError"></div>
+  <button class="setup-btn" id="setupBtn">Connect &amp; Start</button>
+  <div class="setup-note">
+    Your key is stored locally on this device only — it never leaves your browser.
+  </div>
 </div>
 
-<div class="toolbar">
-  <button id="clearBtn">Clear</button>
-  <button id="exportBtn">Export All Notes</button>
+<!-- ═══ MAIN APP ═══ -->
+<div class="app hidden" id="app">
+  <button class="settings-btn" id="settingsBtn" title="Settings">⚙</button>
+
+  <div class="transcript-area" id="transcriptArea">
+    <div class="transcript-placeholder" id="placeholder">
+      <div class="icon">🎤</div>
+      <div>Tap the button below<br>and start speaking</div>
+    </div>
+    <div class="transcript-text" id="transcriptText"></div>
+  </div>
+
+  <div class="controls">
+    <div class="status-bar" id="statusBar">Ready</div>
+    <button class="mic-btn" id="micBtn">
+      <span id="micLabel">Tap to Speak</span>
+    </button>
+    <div class="action-row">
+      <button class="action-btn" id="notesToggle">📝 Notes</button>
+      <button class="action-btn" id="clearBtn">✕ Clear</button>
+      <button class="action-btn" id="exportBtn">↗ Export</button>
+    </div>
+  </div>
+
+  <div class="notes-panel" id="notesPanel">
+    <div class="notes-header">
+      <h3>Saved Notes</h3>
+      <span class="notes-count" id="notesCount">0</span>
+    </div>
+    <div class="notes-list" id="notesList"></div>
+  </div>
 </div>
 
-<div class="saved">
-  <h3>Saved Notes</h3>
-  <div id="notesList"></div>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
+// ═══════════════════════════════════════════
+//  Voice Notes — Deepgram WebSocket Edition
+//  Works inside iCUE WebView2 (no Web Speech API needed)
+// ═══════════════════════════════════════════
+
+const STORAGE_KEY_API = 'vn_deepgram_key';
+const STORAGE_KEY_NOTES = 'vn_notes';
+
+// DOM refs
+const setupScreen = document.getElementById('setupScreen');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const setupBtn = document.getElementById('setupBtn');
+const setupError = document.getElementById('setupError');
+const app = document.getElementById('app');
+const transcriptArea = document.getElementById('transcriptArea');
+const transcriptText = document.getElementById('transcriptText');
+const placeholder = document.getElementById('placeholder');
 const micBtn = document.getElementById('micBtn');
-const statusEl = document.getElementById('status');
-const transcriptEl = document.getElementById('transcript');
-const notesList = document.getElementById('notesList');
+const micLabel = document.getElementById('micLabel');
+const statusBar = document.getElementById('statusBar');
 const clearBtn = document.getElementById('clearBtn');
 const exportBtn = document.getElementById('exportBtn');
+const notesToggle = document.getElementById('notesToggle');
+const notesPanel = document.getElementById('notesPanel');
+const notesList = document.getElementById('notesList');
+const notesCount = document.getElementById('notesCount');
+const settingsBtn = document.getElementById('settingsBtn');
+const toast = document.getElementById('toast');
 
-let recognition;
-let isListening = false;
+let apiKey = '';
+let isRecording = false;
+let mediaRecorder = null;
+let socket = null;
 let fullTranscript = '';
+let currentStream = null;
 
-function initRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    statusEl.innerHTML = '❌ Voice not supported.<br>Use Microsoft Edge.';
-    return false;
+// ── INIT ──
+function init() {
+  const savedKey = localStorage.getItem(STORAGE_KEY_API);
+  if (savedKey) {
+    apiKey = savedKey;
+    showApp();
+  } else {
+    showSetup();
   }
-  recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-US';
+}
 
-  recognition.onresult = (event) => {
-    let interim = '';
-    fullTranscript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      if (event.results[i].isFinal) {
-        fullTranscript += event.results[i][0].transcript + ' ';
-      } else {
-        interim += event.results[i][0].transcript;
-      }
+function showSetup() {
+  setupScreen.classList.remove('hidden');
+  app.classList.add('hidden');
+}
+
+function showApp() {
+  setupScreen.classList.add('hidden');
+  app.classList.remove('hidden');
+  renderNotes();
+  setStatus('Ready', '');
+}
+
+// ── SETUP ──
+setupBtn.addEventListener('click', async () => {
+  const key = apiKeyInput.value.trim();
+  if (!key) {
+    setupError.textContent = 'Please paste your Deepgram API key.';
+    return;
+  }
+  setupError.textContent = '';
+  setupBtn.textContent = 'Testing connection...';
+  setupBtn.disabled = true;
+
+  // Test mic access first
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(t => t.stop());
+  } catch (e) {
+    setupError.textContent = 'Microphone access denied or unavailable. Please allow microphone access and try again.';
+    setupBtn.textContent = 'Connect & Start';
+    setupBtn.disabled = false;
+    return;
+  }
+
+  // Test Deepgram key with a quick WebSocket connection
+  try {
+    const testResult = await testDeepgramKey(key);
+    if (testResult) {
+      apiKey = key;
+      localStorage.setItem(STORAGE_KEY_API, key);
+      showApp();
+    } else {
+      setupError.textContent = 'Invalid API key. Please check and try again.';
     }
-    transcriptEl.textContent = fullTranscript + interim;
-    transcriptEl.scrollTop = transcriptEl.scrollHeight;
-  };
-
-  recognition.onerror = () => stopListening();
-  recognition.onend = () => { if (isListening) stopListening(); };
-  return true;
-}
-
-function startListening() {
-  if (!recognition) initRecognition();
-  fullTranscript = '';
-  transcriptEl.textContent = '';
-  recognition.start();
-  isListening = true;
-  micBtn.textContent = '⏹️ Stop';
-  micBtn.classList.add('listening');
-  statusEl.textContent = '🎙️ Listening... speak naturally';
-}
-
-function stopListening() {
-  if (recognition) recognition.stop();
-  isListening = false;
-  micBtn.textContent = '🎤 Tap to Speak';
-  micBtn.classList.remove('listening');
-  statusEl.textContent = '✅ Stopped — note auto-saved';
-
-  if (fullTranscript.trim()) {
-    const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
-    notes.unshift({
-      time: new Date().toLocaleString(),
-      text: fullTranscript.trim()
-    });
-    localStorage.setItem('edgeNotes', JSON.stringify(notes));
-    renderNotes();
+  } catch (e) {
+    setupError.textContent = 'Connection failed: ' + (e.message || 'Unknown error');
   }
-}
-
-micBtn.addEventListener('click', () => {
-  if (isListening) stopListening();
-  else startListening();
+  setupBtn.textContent = 'Connect & Start';
+  setupBtn.disabled = false;
 });
 
-clearBtn.addEventListener('click', () => {
-  transcriptEl.textContent = '';
-  fullTranscript = '';
-});
-
-exportBtn.addEventListener('click', () => {
-  const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
-  if (!notes.length) return;
-  const text = notes.map(n => `${n.time}\n${n.text}\n\n`).join('────────────────\n');
-  const blob = new Blob([text], {type: 'text/plain'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `Edge-Notes-${new Date().toISOString().slice(0,10)}.txt`;
-  a.click();
-});
-
-function renderNotes() {
-  const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
-  notesList.innerHTML = notes.length ? '' : '<p style="text-align:center;color:#666;padding:20px;">No notes yet</p>';
-  notes.forEach(note => {
-    const div = document.createElement('div');
-    div.className = 'note';
-    div.innerHTML = `<small>${note.time}</small>${note.text}`;
-    div.onclick = () => {
-      navigator.clipboard.writeText(note.text).then(() => {
-        alert('✅ Copied to clipboard!');
-      });
-    };
-    notesList.appendChild(div);
+function testDeepgramKey(key) {
+  return new Promise((resolve) => {
+    try {
+      const ws = new WebSocket('wss://api.deepgram.com/v1/listen', ['token', key]);
+      const timeout = setTimeout(() => { ws.close(); resolve(false); }, 5000);
+      ws.onopen = () => { clearTimeout(timeout); ws.close(); resolve(true); };
+      ws.onerror = () => { clearTimeout(timeout); resolve(false); };
+      ws.onclose = (e) => {
+        clearTimeout(timeout);
+        // Code 1000 = normal close (we closed it), that's a success
+        // If it didn't open at all, onerror handles it
+      };
+    } catch (e) { resolve(false); }
   });
 }
 
-initRecognition();
-renderNotes();
+// ── SETTINGS ──
+settingsBtn.addEventListener('click', () => {
+  if (isRecording) stopRecording();
+  localStorage.removeItem(STORAGE_KEY_API);
+  apiKey = '';
+  apiKeyInput.value = '';
+  showSetup();
+  showToast('API key cleared');
+});
+
+// ── RECORDING ──
+micBtn.addEventListener('click', async () => {
+  // Ripple effect
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  const rect = micBtn.getBoundingClientRect();
+  ripple.style.width = ripple.style.height = Math.max(rect.width, rect.height) + 'px';
+  ripple.style.left = '0px';
+  ripple.style.top = '0px';
+  micBtn.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+
+  if (isRecording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+});
+
+async function startRecording() {
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    setStatus('Microphone access denied', 'error');
+    return;
+  }
+
+  // Connect to Deepgram
+  try {
+    socket = new WebSocket(
+      'wss://api.deepgram.com/v1/listen?punctuate=true&interim_results=true&language=en&model=nova-2&smart_format=true&filler_words=false&endpointing=300',
+      ['token', apiKey]
+    );
+  } catch (e) {
+    setStatus('Connection failed', 'error');
+    currentStream.getTracks().forEach(t => t.stop());
+    return;
+  }
+
+  socket.onopen = () => {
+    isRecording = true;
+    micBtn.classList.add('recording');
+    micLabel.innerHTML = '<div class="waveform"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    setStatus('Listening — speak now', 'active');
+    placeholder.style.display = 'none';
+
+    // Start sending audio
+    mediaRecorder = new MediaRecorder(currentStream, { mimeType: getMediaType() });
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(event.data);
+      }
+    };
+    mediaRecorder.start(250); // Send chunks every 250ms
+  };
+
+  socket.onmessage = (message) => {
+    try {
+      const data = JSON.parse(message.data);
+      if (data.channel && data.channel.alternatives && data.channel.alternatives.length > 0) {
+        const transcript = data.channel.alternatives[0].transcript;
+        if (transcript) {
+          if (data.is_final) {
+            fullTranscript += transcript + ' ';
+            renderTranscript(fullTranscript, '');
+          } else {
+            renderTranscript(fullTranscript, transcript);
+          }
+        }
+      }
+    } catch (e) { /* ignore parse errors */ }
+  };
+
+  socket.onerror = () => {
+    setStatus('Connection error — try again', 'error');
+    stopRecording();
+  };
+
+  socket.onclose = (e) => {
+    if (isRecording) {
+      // Unexpected close
+      stopRecording();
+    }
+  };
+}
+
+function stopRecording() {
+  isRecording = false;
+  micBtn.classList.remove('recording');
+  micLabel.textContent = 'Tap to Speak';
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  mediaRecorder = null;
+
+  if (currentStream) {
+    currentStream.getTracks().forEach(t => t.stop());
+    currentStream = null;
+  }
+
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.close();
+  }
+  socket = null;
+
+  // Auto-save
+  const text = fullTranscript.trim();
+  if (text.length > 0) {
+    saveNote(text);
+    setStatus('Saved', '');
+    showToast('Note saved');
+  } else {
+    setStatus('Ready', '');
+  }
+}
+
+function getMediaType() {
+  // WebView2 / Edge / Chrome support these
+  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return ''; // Let browser pick default
+}
+
+function renderTranscript(final, interim) {
+  const html = final + (interim ? '<span class="interim">' + interim + '</span>' : '');
+  transcriptText.innerHTML = html;
+  // Auto-scroll to bottom
+  transcriptArea.scrollTop = transcriptArea.scrollHeight;
+}
+
+function setStatus(text, type) {
+  statusBar.textContent = text;
+  statusBar.className = 'status-bar' + (type ? ' ' + type : '');
+}
+
+// ── NOTES ──
+function saveNote(text) {
+  const notes = getNotes();
+  notes.unshift({
+    id: Date.now(),
+    time: new Date().toLocaleString(),
+    text: text
+  });
+  localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+  renderNotes();
+}
+
+function getNotes() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY_NOTES) || '[]');
+  } catch { return []; }
+}
+
+function renderNotes() {
+  const notes = getNotes();
+  notesCount.textContent = notes.length;
+
+  if (notes.length === 0) {
+    notesList.innerHTML = '<div class="notes-empty">No saved notes yet</div>';
+    return;
+  }
+
+  notesList.innerHTML = '';
+  notes.forEach((note, i) => {
+    const card = document.createElement('div');
+    card.className = 'note-card';
+    card.innerHTML = '<div class="note-time">' + escapeHtml(note.time) + '</div><div class="note-preview">' + escapeHtml(note.text) + '</div>';
+    card.addEventListener('click', () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(note.text).then(() => showToast('Copied to clipboard'));
+      }
+    });
+    notesList.appendChild(card);
+  });
+}
+
+// ── ACTIONS ──
+clearBtn.addEventListener('click', () => {
+  if (isRecording) stopRecording();
+  fullTranscript = '';
+  transcriptText.innerHTML = '';
+  placeholder.style.display = '';
+  setStatus('Cleared', '');
+});
+
+exportBtn.addEventListener('click', () => {
+  const notes = getNotes();
+  if (notes.length === 0) {
+    showToast('No notes to export');
+    return;
+  }
+  const text = notes.map(n => n.time + '\n' + n.text + '\n').join('\n────────────────────────\n\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Voice-Notes-' + new Date().toISOString().slice(0, 10) + '.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Notes exported');
+});
+
+let notesPanelOpen = false;
+notesToggle.addEventListener('click', () => {
+  notesPanelOpen = !notesPanelOpen;
+  notesPanel.classList.toggle('open', notesPanelOpen);
+  notesToggle.innerHTML = notesPanelOpen ? '📝 Close' : '📝 Notes';
+});
+
+// ── UTILITIES ──
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ── GO ──
+init();
 </script>
 </body>
 </html>
