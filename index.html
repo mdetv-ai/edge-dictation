@@ -553,59 +553,13 @@ setupBtn.addEventListener('click', async () => {
     setupError.textContent = 'Please paste your Deepgram API key.';
     return;
   }
-  setupError.textContent = '';
-  setupBtn.textContent = 'Testing microphone...';
-  setupBtn.disabled = true;
-
-  // Test mic access first
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(t => t.stop());
-  } catch (e) {
-    setupError.textContent = 'Microphone access denied or unavailable. Error: ' + (e.name || e.message || 'unknown');
-    setupBtn.textContent = 'Connect & Start';
-    setupBtn.disabled = false;
-    return;
-  }
-
-  setupBtn.textContent = 'Connecting to Deepgram...';
-
-  // Test Deepgram key with a quick WebSocket connection
-  try {
-    const testResult = await testDeepgramKey(key);
-    if (testResult) {
-      apiKey = key;
-      localStorage.setItem(STORAGE_KEY_API, key);
-      showApp();
-    } else {
-      setupError.textContent = 'Invalid API key. Please check and try again.';
-    }
-  } catch (e) {
-    setupError.textContent = 'Connection failed: ' + (e.message || 'Unknown error');
-  }
-  setupBtn.textContent = 'Connect & Start';
-  setupBtn.disabled = false;
+  // No testing — just save and go. We'll test when they tap to speak.
+  apiKey = key;
+  localStorage.setItem(STORAGE_KEY_API, key);
+  showApp();
 });
 
-function testDeepgramKey(key) {
-  return new Promise((resolve) => {
-    try {
-      // Use URL-based auth (works in restricted WebViews that block subprotocol auth)
-      const ws = new WebSocket('wss://api.deepgram.com/v1/listen?token=' + encodeURIComponent(key));
-      let opened = false;
-      const timeout = setTimeout(() => { 
-        if (!opened) { try { ws.close(); } catch(e){} resolve(false); }
-      }, 8000);
-      ws.onopen = () => { 
-        opened = true;
-        clearTimeout(timeout); 
-        try { ws.close(); } catch(e){}
-        resolve(true); 
-      };
-      ws.onerror = () => { clearTimeout(timeout); resolve(false); };
-    } catch (e) { resolve(false); }
-  });
-}
+// No longer needed — removed testDeepgramKey
 
 // ── SETTINGS ──
 settingsBtn.addEventListener('click', () => {
@@ -637,25 +591,44 @@ micBtn.addEventListener('click', async () => {
 });
 
 async function startRecording() {
+  setStatus('Requesting microphone...', '');
+
   try {
     currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    setStatus('Microphone access denied', 'error');
+    setStatus('Mic denied: ' + (e.name || '') + ' ' + (e.message || ''), 'error');
     return;
   }
 
-  // Connect to Deepgram (URL-based auth — works in WebView2)
+  setStatus('Mic OK — connecting to Deepgram...', '');
+
+  // Connect to Deepgram (try URL-based auth first, then subprotocol)
   try {
     socket = new WebSocket(
       'wss://api.deepgram.com/v1/listen?token=' + encodeURIComponent(apiKey) + '&punctuate=true&interim_results=true&language=en&model=nova-2&smart_format=true&filler_words=false&endpointing=300'
     );
   } catch (e) {
+    setStatus('WebSocket create failed: ' + (e.message || ''), 'error');
+    currentStream.getTracks().forEach(t => t.stop());
+    return;
+  }
+
+  // Timeout if connection doesn't open
+  const connectTimeout = setTimeout(() => {
+    if (!isRecording) {
+      setStatus('Connection timed out — WebSocket may be blocked in this browser', 'error');
+      try { socket.close(); } catch(e){}
+      currentStream.getTracks().forEach(t => t.stop());
+      currentStream = null;
+    }
+  }, 10000);
     setStatus('Connection failed', 'error');
     currentStream.getTracks().forEach(t => t.stop());
     return;
   }
 
   socket.onopen = () => {
+    clearTimeout(connectTimeout);
     isRecording = true;
     micBtn.classList.add('recording');
     micLabel.innerHTML = '<div class="waveform"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
@@ -689,14 +662,16 @@ async function startRecording() {
     } catch (e) { /* ignore parse errors */ }
   };
 
-  socket.onerror = () => {
-    setStatus('Connection error — try again', 'error');
+  socket.onerror = (e) => {
+    clearTimeout(connectTimeout);
+    setStatus('WebSocket error — connection may be blocked', 'error');
     stopRecording();
   };
 
   socket.onclose = (e) => {
+    clearTimeout(connectTimeout);
     if (isRecording) {
-      // Unexpected close
+      setStatus('Connection closed (code: ' + e.code + ')', 'error');
       stopRecording();
     }
   };
