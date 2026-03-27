@@ -554,7 +554,7 @@ setupBtn.addEventListener('click', async () => {
     return;
   }
   setupError.textContent = '';
-  setupBtn.textContent = 'Testing connection...';
+  setupBtn.textContent = 'Testing microphone...';
   setupBtn.disabled = true;
 
   // Test mic access first
@@ -562,11 +562,13 @@ setupBtn.addEventListener('click', async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach(t => t.stop());
   } catch (e) {
-    setupError.textContent = 'Microphone access denied or unavailable. Please allow microphone access and try again.';
+    setupError.textContent = 'Microphone access denied or unavailable. Error: ' + (e.name || e.message || 'unknown');
     setupBtn.textContent = 'Connect & Start';
     setupBtn.disabled = false;
     return;
   }
+
+  setupBtn.textContent = 'Connecting to Deepgram...';
 
   // Test Deepgram key with a quick WebSocket connection
   try {
@@ -588,15 +590,19 @@ setupBtn.addEventListener('click', async () => {
 function testDeepgramKey(key) {
   return new Promise((resolve) => {
     try {
-      const ws = new WebSocket('wss://api.deepgram.com/v1/listen', ['token', key]);
-      const timeout = setTimeout(() => { ws.close(); resolve(false); }, 5000);
-      ws.onopen = () => { clearTimeout(timeout); ws.close(); resolve(true); };
-      ws.onerror = () => { clearTimeout(timeout); resolve(false); };
-      ws.onclose = (e) => {
-        clearTimeout(timeout);
-        // Code 1000 = normal close (we closed it), that's a success
-        // If it didn't open at all, onerror handles it
+      // Use URL-based auth (works in restricted WebViews that block subprotocol auth)
+      const ws = new WebSocket('wss://api.deepgram.com/v1/listen?token=' + encodeURIComponent(key));
+      let opened = false;
+      const timeout = setTimeout(() => { 
+        if (!opened) { try { ws.close(); } catch(e){} resolve(false); }
+      }, 8000);
+      ws.onopen = () => { 
+        opened = true;
+        clearTimeout(timeout); 
+        try { ws.close(); } catch(e){}
+        resolve(true); 
       };
+      ws.onerror = () => { clearTimeout(timeout); resolve(false); };
     } catch (e) { resolve(false); }
   });
 }
@@ -638,11 +644,10 @@ async function startRecording() {
     return;
   }
 
-  // Connect to Deepgram
+  // Connect to Deepgram (URL-based auth — works in WebView2)
   try {
     socket = new WebSocket(
-      'wss://api.deepgram.com/v1/listen?punctuate=true&interim_results=true&language=en&model=nova-2&smart_format=true&filler_words=false&endpointing=300',
-      ['token', apiKey]
+      'wss://api.deepgram.com/v1/listen?token=' + encodeURIComponent(apiKey) + '&punctuate=true&interim_results=true&language=en&model=nova-2&smart_format=true&filler_words=false&endpointing=300'
     );
   } catch (e) {
     setStatus('Connection failed', 'error');
