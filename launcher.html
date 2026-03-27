@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Voice Notes Launcher</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #111111;
+    color: #ffffff;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .container {
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+  }
+  .big-btn {
+    width: 92%;
+    height: 110px;
+    font-size: 28px;
+    font-weight: 600;
+    background: #00d4ff;
+    color: #000;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(0, 212, 255, 0.45);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .big-btn:active {
+    transform: scale(0.94);
+    box-shadow: 0 8px 20px rgba(0, 212, 255, 0.6);
+  }
+  .label {
+    font-size: 17px;
+    color: #888;
+    margin-top: 24px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <button id="launchBtn" class="big-btn">
+    🎤 Open Voice Notes
+  </button>
+  <div class="label">Tap to start dictation in Microsoft Edge</div>
+</div>
+
+<script>
+document.getElementById('launchBtn').addEventListener('click', () => {
+  // This forces Microsoft Edge specifically (works from iCUE widget)
+  window.open('microsoft-edge:https://mdetv-ai.github.io/edge-dictation/', '_blank');
+});
+</script>
+</body>
+</html>
