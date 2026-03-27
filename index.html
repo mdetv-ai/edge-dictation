@@ -2,6 +2,152 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Edge Voice Notes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { margin:0; font-family: system-ui, sans-serif; background:#111; color:#fff; height:100vh; display:flex; flex-direction:column; }
+  header { background:#1a1a1a; padding:12px; text-align:center; font-size:22px; font-weight:600; }
+  .main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; gap:15px; }
+  .big-btn {
+    width:90%; max-width:800px; height:120px; font-size:32px; background:#00d4ff; color:#000; border:none;
+    border-radius:20px; cursor:pointer; box-shadow:0 8px 20px rgba(0,212,255,0.4);
+  }
+  .big-btn.listening { background:#ff3b5c; animation: pulse 1.5s infinite; }
+  .status { font-size:18px; min-height:28px; text-align:center; }
+  .transcript { width:90%; max-width:900px; background:#222; padding:20px; border-radius:16px; min-height:120px; font-size:20px; line-height:1.4; white-space:pre-wrap; overflow-y:auto; }
+  .notes { flex:1; padding:15px; background:#1a1a1a; overflow-y:auto; }
+  .note { background:#222; margin:8px 0; padding:12px; border-radius:12px; cursor:pointer; }
+  .note small { color:#00d4ff; }
+  button.small { background:#333; color:#fff; border:none; padding:10px 16px; margin:5px; border-radius:8px; font-size:16px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+</style>
+</head>
+<body>
+<header>🎤 Edge Voice Notes — Tap to Speak</header>
+<div class="main">
+  <button id="micBtn" class="big-btn">🎤 TAP TO START SPEAKING</button>
+  <div id="status" class="status"></div>
+  <div id="transcript" class="transcript"></div>
+  <div style="display:flex;gap:10px;">
+    <button class="small" id="saveBtn">Save Note</button>
+    <button class="small" id="clearBtn">Clear Current</button>
+    <button class="small" id="exportBtn">Export All Notes</button>
+  </div>
+</div>
+
+<div class="notes">
+  <h3 style="margin:0 0 10px 10px;">Saved Notes</h3>
+  <div id="notesList"></div>
+</div>
+
+<script>
+const micBtn = document.getElementById('micBtn');
+const statusEl = document.getElementById('status');
+const transcriptEl = document.getElementById('transcript');
+const notesList = document.getElementById('notesList');
+const saveBtn = document.getElementById('saveBtn');
+const clearBtn = document.getElementById('clearBtn');
+const exportBtn = document.getElementById('exportBtn');
+
+let recognition;
+let isListening = false;
+let finalTranscript = '';
+let interimTranscript = '';
+
+// 🔥 NEW: Check if voice dictation is supported
+function checkSupport() {
+  if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    statusEl.innerHTML = '✅ Ready — tap the button and speak!';
+    return true;
+  } else {
+    statusEl.innerHTML = `<span style="color:#ff3b5c">❌ Voice dictation not supported in this browser.<br>Please use Google Chrome or Microsoft Edge (latest version).</span>`;
+    micBtn.disabled = true;
+    micBtn.style.opacity = '0.5';
+    return false;
+  }
+}
+
+function initRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US'; // change if you need another language
+
+  recognition.onresult = (event) => {
+    interimTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript + ' ';
+      } else {
+        interimTranscript += event.results[i][0].transcript;
+      }
+    }
+    transcriptEl.innerHTML = finalTranscript + '<span style="color:#888">' + interimTranscript + '</span>';
+  };
+
+  recognition.onerror = (e) => {
+    statusEl.textContent = 'Error: ' + e.error;
+    stopListening();
+  };
+  recognition.onend = () => { if (isListening) stopListening(); };
+}
+
+function startListening() {
+  if (!recognition) initRecognition();
+  finalTranscript = '';
+  interimTranscript = '';
+  transcriptEl.textContent = '';
+  recognition.start();
+  isListening = true;
+  micBtn.textContent = '⏹️ TAP TO STOP';
+  micBtn.classList.add('listening');
+  statusEl.textContent = '🎙️ Listening... speak now';
+}
+
+function stopListening() {
+  if (recognition) recognition.stop();
+  isListening = false;
+  micBtn.textContent = '🎤 TAP TO START SPEAKING';
+  micBtn.classList.remove('listening');
+  statusEl.textContent = '✅ Stopped — tap Save if happy';
+}
+
+micBtn.addEventListener('click', () => {
+  if (isListening) {
+    stopListening();
+  } else {
+    startListening();
+  }
+});
+
+saveBtn.addEventListener('click', () => {
+  if (!finalTranscript.trim()) return;
+  const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
+  notes.unshift({ time: new Date().toLocaleString(), text: finalTranscript.trim() });
+  localStorage.setItem('edgeNotes', JSON.stringify(notes));
+  renderNotes();
+  transcriptEl.textContent = '';
+  finalTranscript = '';
+  statusEl.textContent = '✅ Note saved!';
+});
+
+clearBtn.addEventListener('click', () => {
+  transcriptEl.textContent = '';
+  finalTranscript = '';
+});
+
+exportBtn.addEventListener('click', () => {
+  const notes = JSON.parse(localStorage.getItem('edgeNotes') || '[]');
+  if (!notes.length) return;
+  const text = notes.map(n => `${n.time}\n${n.text}\n\n`).join('---\n');
+  const blob = new Blob([text], {type: 'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `Edge-Notes-${new Date().toISOString().<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
 <title>Edge Voice Notes DEBUG</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
